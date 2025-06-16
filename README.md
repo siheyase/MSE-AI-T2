@@ -1,7 +1,7 @@
 # MSE-AI-T2
-python环境：python 3.12
-Embedding model:bge-m3
-Agent model: qwen2.5:14b-instruct-fp16
+python环境：python 3.12  
+Embedding model:bge-m3  
+Agent model: qwen2.5:14b-instruct-fp16  
 
 ```
 ├── main.py 暂时的程序运行代码 
