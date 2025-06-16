@@ -21,4 +21,6 @@ Agent model: qwen2.5:14b-instruct-fp16
 └── docs 存储向量库对应分块的父文档
 ```
 把docs、vs的压缩包下的内容解压存放到对应文件夹下。
-
+```
+pip install -r requirements.txt
+```
