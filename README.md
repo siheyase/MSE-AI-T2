@@ -25,3 +25,7 @@ Agent model: qwen2.5:14b-instruct-fp16
 ```
 pip install -r requirements.txt
 ```
+运行以进行测试
+```
+python main.py
+```
