@@ -1,5 +1,6 @@
 # MSE-AI-T2
 python环境：python 3.12  
+Ollama部署的模型如下：  
 Embedding model:bge-m3  
 Agent model: qwen2.5:14b-instruct-fp16  
 
