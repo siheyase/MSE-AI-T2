@@ -1,4 +1,3 @@
-# agent.py
 from agno.agent import Agent
 from agno.models.ollama import Ollama
 from agno.tools.reasoning import ReasoningTools
@@ -15,6 +14,7 @@ from textwrap import dedent
 
 logger = logging.getLogger(__name__)
 
+# 初始化存储
 storage = SqliteStorage(
     table_name="agent_sessions",
     db_file="history/session.db",
@@ -45,7 +45,6 @@ def retrieve_medical(query: Annotated[str, "需要查询的医学问题"]) -> st
             logger.warning(f"解码失败: {e}")
     return "\n\n".join(contexts) if contexts else "未找到相关医学资料。"
 
-
 def get_agent(model_id: str = DEFAULT_MODEL, session_id=None, user_id=None) -> Agent:
     return Agent(
         name="Medical Assistant",
@@ -53,24 +52,23 @@ def get_agent(model_id: str = DEFAULT_MODEL, session_id=None, user_id=None) -> A
         session_id=session_id,
         user_id=user_id,
         instructions=dedent("""\
-                        你是一个智能助手，可以回答用户的各种问题。
-                        向量数据库数据来源权威的医药网站“寻医问药”网，处理成结构化数据
-                        数据示例：
-                        {
-                        "name": "肺泡蛋白质沉积症",
-                        "desc": "肺泡蛋白质沉积症(简称PAP)...男性发病约3倍于女性。",
-                        "category": ["疾病百科","内科","呼吸内科"],
-                        "prevent": "1、避免感染分支杆菌病...因此目前一般认为本病与清除能力下降有关。",
-                        "symptom": ["紫绀","胸痛","呼吸困难","乏力","毓卓"],
-                        "acompany": ["多重肺部感染"],
-                        "cure_department": ["内科","呼吸内科"],
-                        "cure_way": ["支气管肺泡灌洗"],
-                        "check": ["胸部CT检查","肺活检","支气管镜检查"],
-                        "recommand_drug":...,
-                        "drug_detail":...
-                        }
-                        如果你认为用户当前的问题无法凭借自身内部知识直接回答，需要检索类似上述的医学知识，那么使用retrieve_medical工具，例如：retrieve_medical(query)，否则无需检索直接回答\
-                    """),
+            你是一个智能助手，可以回答用户的各种问题。
+            向量数据库数据来源权威的医药网站“寻医问药”网，处理成结构化数据
+            数据示例：
+            {
+            "name": "肺泡蛋白质沉积症",
+            "desc": "肺泡蛋白质沉积症(简称PAP)...男性发病约3倍于女性。",
+            "category": ["疾病百科","内科","呼吸内科"],
+            "prevent": "1、避免感染分支杆菌病...因此目前一般认为本病与清除能力下降有关。",
+            "symptom": ["紫绀","胸痛","呼吸困难","乏力"],
+            "acompany": ["多重肺部感染"],
+            "cure_department": ["内科","呼吸内科"],
+            "cure_way": ["支气管肺泡灌洗"],
+            "check": ["胸部CT检查","肺活检","支气管镜检查"],
+            ...
+            }
+            如果你认为用户当前的问题无法凭借自身内部知识直接回答，需要检索类似上述的医学知识，那么使用retrieve_medical工具，例如：retrieve_medical(query)，否则无需检索直接回答\
+        """),
         tools=[ReasoningTools(add_instructions=True), retrieve_medical],
         show_tool_calls=True,
         markdown=True,

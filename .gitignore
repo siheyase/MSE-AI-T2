@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.pyc
 __pycache__/
 .history/
@@ -5,3 +6,17 @@ venv/
 .env
 *.db
 *.log
+=======
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+vs/*
+docs/*
+
+.python-version
+>>>>>>> origin/main
+medRAG/lib/
+medRAG/vs/
