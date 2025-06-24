@@ -1,7 +1,7 @@
 import os
 import tempfile
 from typing import List
-
+import requests
 import nest_asyncio
 from weasyprint import HTML
 import markdown2
@@ -63,6 +63,32 @@ def get_reader(file_type: str):
         "txt": TextReader(),
     }
     return readers.get(file_type.lower(), None)
+
+# 生成病例并下載
+#user_id = st.session_state.get("user_id", "default_user")
+#session_id = st.session_state.get("agentic_rag_agent_session_id")
+
+payload = {
+    "user_id": "user_001",
+    "session_id": "session_001"  # 替换成有效 ID
+}
+
+def download_case():
+    base_url = "http://localhost:8000"
+
+    try:
+        # 向后端请求 PDF 数据
+        response = requests.post(f"{base_url}/generate_case_pdf", json=payload)
+
+        # 成功返回 PDF 内容（字节流）
+        if response.status_code == 200:
+            return response.content  # 返回 PDF 的二进制内容
+        else:
+            st.error(f"请求病例PDF失败: {response.status_code} {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"下载病例报告出错: {e}")
+        return None
 
 
 def main():
@@ -265,21 +291,46 @@ def main():
     # Utility buttons
     ###############################################################
     st.sidebar.markdown("#### 🛠️ 功能")
-    col1, col2 = st.sidebar.columns([1, 1])  # Equal width columns
-    with col1:
-        if st.sidebar.button(
-            "🔄 新聊天", use_container_width=True
-        ):  # Added use_container_width
-            restart_agent()
-    with col2:
-        if st.sidebar.download_button(
-            "💾 导出聊天",
-            export_chat_history(),
-            file_name="rag_chat_history.md",
-            mime="text/markdown",
-            use_container_width=True,  # Added use_container_width
-        ):
-            st.sidebar.success("聊天记录已导出!")
+    #col1, col2, col3 = st.sidebar.columns([1, 1, 1])  # Equal width columns
+
+    if st.sidebar.button(
+        "🔄 新聊天", use_container_width=True
+    ):  # Added use_container_width
+        restart_agent()
+    if st.sidebar.download_button(
+        "💾 导出聊天",
+        export_chat_history(),
+        file_name="rag_chat_history.md",
+        mime="text/markdown",
+        use_container_width=True,  # Added use_container_width
+    ):
+        st.sidebar.success("聊天记录已导出!")
+
+    if "pdf_ready" not in st.session_state:
+        st.session_state["pdf_ready"] = False
+        st.session_state["pdf_bytes"] = None
+
+    if st.sidebar.button("📃 生成病例报告", use_container_width=True):
+        with st.spinner("正在生成病例报告..."):
+            try:
+                pdf_bytes = download_case()
+                st.session_state["pdf_bytes"] = pdf_bytes
+                st.session_state["pdf_ready"] = True
+                st.sidebar.success("病例报告已生成！")
+            except Exception as e:
+                st.session_state["pdf_ready"] = False
+                st.sidebar.error(f"生成失败：{e}")
+
+    # 按钮2：下载病例报告（仅在生成成功后显示）
+    if st.session_state["pdf_ready"]:
+        st.sidebar.download_button(
+            label="⬇️ 下载病例报告",
+            data=st.session_state["pdf_bytes"],
+            file_name="病例报告.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
 
     ####################################################################
     # Display chat history
