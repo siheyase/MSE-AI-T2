@@ -29,7 +29,10 @@ pip install -r requirements.txt
 ```
 python main.py
 ```
-你可以在 `README.md` 中加入一个新的小节，例如：
+前端运行命令  
+```
+streamlit run app.py
+```
 
 ---
 
