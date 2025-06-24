@@ -33,6 +33,14 @@ python main.py
 ```
 streamlit run app.py
 ```
+病例生成接口运行命令  
+```
+uvicorn generate_case:app --reload --host 0.0.0.0 --port 8000
+```
+病例生成接口测试  
+```
+python test_generate_case.py
+```
 
 ---
 
