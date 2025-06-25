@@ -14,12 +14,15 @@ from agno.document.reader.website_reader import WebsiteReader
 from agno.utils.log import logger
 from app_utils import (
     CUSTOM_CSS,
-    about_widget,
     add_message,
     display_tool_calls,
     export_chat_history,
     rename_session_widget,
-    session_selector_widget,
+    get_all_sessions,
+    insert_messages,
+    restart_agent,
+    get_answer,
+    save_message_to_db,
 )
 from models.agent import get_agent
 nest_asyncio.apply()
@@ -30,29 +33,11 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+DB_PATH = "history/case.db"
 
 # Add custom CSS
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
-
-
-def restart_agent():
-    """Reset the agent and clear chat history"""
-    logger.debug("---*--- Restarting Agent ---*---")
-    # 只有当前会话是最新会话时才保存
-    expected_name = f"会话{len(st.session_state['chat_sessions'])+1}"
-    if (
-        st.session_state.get("messages")
-        and len(st.session_state["messages"]) > 0
-        and st.session_state.get("current_session_name") not in st.session_state["chat_sessions"]
-    ):
-        st.session_state["chat_sessions"][st.session_state.get("current_session_name", expected_name)] = st.session_state["messages"].copy()
-    # 清空
-    st.session_state["agentic_rag_agent"] = None
-    st.session_state["agentic_rag_agent_session_id"] = None
-    st.session_state["messages"] = []
-    st.session_state["current_session_name"] = f"会话{len(st.session_state['chat_sessions'])+1}"
-    st.rerun()
 
 
 def get_reader(file_type: str):
@@ -105,8 +90,8 @@ def main():
     # Model selector
     ####################################################################
     model_options = {
-        "qwen2.5-14b": "qwen2.5:14b-instruct-fp16",
-        # "qwen2.5-0.5b": "qwen2.5:0.5b",
+        # "qwen2.5-14b": "qwen2.5:14b-instruct-fp16",
+        "qwen2.5-0.5b": "qwen2.5:0.5b",
     }
     selected_model = st.sidebar.selectbox(
         "请选择你需要的模型",
@@ -126,16 +111,17 @@ def main():
         or st.session_state.get("current_model") != model_id
     ):
         logger.info("---*--- Creating new Agentic RAG  ---*---")
-        agentic_rag_agent = get_agent()
+        agentic_rag_agent = get_agent(session_id=st.session_state.get("current_session_name"), user_id=payload["user_id"])
         st.session_state["agentic_rag_agent"] = agentic_rag_agent
         st.session_state["current_model"] = model_id
     else:
         agentic_rag_agent = st.session_state["agentic_rag_agent"]
 
     if "chat_sessions" not in st.session_state:
-        st.session_state["chat_sessions"] = {}
+        st.session_state["chat_sessions"] = get_all_sessions(DB_PATH)
     if "current_session_name" not in st.session_state:
-        st.session_state["current_session_name"] = f"会话{len(st.session_state['chat_sessions'])+1}"
+        session_count = len(st.session_state["chat_sessions"])
+        st.session_state["current_session_name"] = f"session_{session_count+1:03d}"
 
     ####################################################################
     # Load Agent Session from the database
@@ -196,86 +182,9 @@ def main():
 
     if prompt := st.chat_input("👋 请尽情向我提问任何关于医疗的问题!"):
         add_message("user", prompt)
+        save_message_to_db(st.session_state["current_session_name"], payload["user_id"], "user", prompt)
 
-    ####################################################################
-    # Track loaded URLs and files in session state
-    ####################################################################
-    if "loaded_urls" not in st.session_state:
-        st.session_state.loaded_urls = set()
-    if "loaded_files" not in st.session_state:
-        st.session_state.loaded_files = set()
-    if "knowledge_base_initialized" not in st.session_state:
-        st.session_state.knowledge_base_initialized = False
 
-    # st.sidebar.markdown("#### 📚 文档管理")
-    # input_url = st.sidebar.text_input("向知识库添加URL")
-    # if (
-    #     input_url and not prompt and not st.session_state.knowledge_base_initialized
-    # ):  # Only load if KB not initialized
-    #     if input_url not in st.session_state.loaded_urls:
-    #         alert = st.sidebar.info("URL 处理中...", icon="ℹ️")
-    #         if input_url.lower().endswith(".pdf"):
-    #             try:
-    #                 # Download PDF to temporary file
-    #                 response = requests.get(input_url, stream=True, verify=False)
-    #                 response.raise_for_status()
-
-    #                 with tempfile.NamedTemporaryFile(
-    #                     suffix=".pdf", delete=False
-    #                 ) as tmp_file:
-    #                     for chunk in response.iter_content(chunk_size=8192):
-    #                         tmp_file.write(chunk)
-    #                     tmp_path = tmp_file.name
-
-    #                 reader = PDFReader()
-    #                 docs: List[Document] = reader.read(tmp_path)
-
-    #                 # Clean up temporary file
-    #                 os.unlink(tmp_path)
-    #             except Exception as e:
-    #                 st.sidebar.error(f"PDF处理失败: {str(e)}")
-    #                 docs = []
-    #         else:
-    #             scraper = WebsiteReader(max_links=2, max_depth=1)
-    #             docs: List[Document] = scraper.read(input_url)
-
-    #         if docs:
-    #             agentic_rag_agent.knowledge.load_documents(docs, upsert=True)
-    #             st.session_state.loaded_urls.add(input_url)
-    #             st.sidebar.success("URL添加成功")
-    #         else:
-    #             st.sidebar.error("URL处理失败")
-    #         alert.empty()
-    #     else:
-    #         st.sidebar.info("URL已存在")
-
-    # uploaded_file = st.sidebar.file_uploader(
-    #     "上传文件 (.pdf, .csv, or .txt)", key="file_upload"
-    # )
-    # if (
-    #     uploaded_file and not prompt and not st.session_state.knowledge_base_initialized
-    # ):  # Only load if KB not initialized
-    #     file_identifier = f"{uploaded_file.name}_{uploaded_file.size}"
-    #     if file_identifier not in st.session_state.loaded_files:
-    #         alert = st.sidebar.info("文件处理中...", icon="ℹ️")
-    #         file_type = uploaded_file.name.split(".")[-1].lower()
-    #         reader = get_reader(file_type)
-    #         if reader:
-    #             docs = reader.read(uploaded_file)
-    #             agentic_rag_agent.knowledge.load_documents(docs, upsert=True)
-    #             st.session_state.loaded_files.add(file_identifier)
-    #             st.sidebar.success(f"{uploaded_file.name} 添加成功")
-    #             st.session_state.knowledge_base_initialized = True
-    #         alert.empty()
-    #     else:
-    #         st.sidebar.info(f"{uploaded_file.name} 已存在")
-
-    # if st.sidebar.button("清空知识库"):
-    #     agentic_rag_agent.knowledge.vector_db.delete()
-    #     st.session_state.loaded_urls.clear()
-    #     st.session_state.loaded_files.clear()
-    #     st.session_state.knowledge_base_initialized = False  # Reset initialization flag
-    #     st.sidebar.success("知识库已清空")
     ###############################################################
     # Sample Question
     ###############################################################
@@ -295,7 +204,7 @@ def main():
 
     if st.sidebar.button(
         "🔄 新聊天", use_container_width=True
-    ):  # Added use_container_width
+    ):
         restart_agent()
     if st.sidebar.download_button(
         "💾 导出聊天",
@@ -322,7 +231,7 @@ def main():
                 st.sidebar.error(f"生成失败：{e}")
 
     # 按钮2：下载病例报告（仅在生成成功后显示）
-    if st.session_state["pdf_ready"]:
+    if st.session_state["pdf_ready"] and st.session_state["pdf_bytes"]:
         st.sidebar.download_button(
             label="⬇️ 下载病例报告",
             data=st.session_state["pdf_bytes"],
@@ -330,6 +239,8 @@ def main():
             mime="application/pdf",
             use_container_width=True
         )
+    elif st.session_state["pdf_ready"] and not st.session_state["pdf_bytes"]:
+        st.sidebar.error("病例报告生成失败，未获取到有效的PDF数据。")
 
 
     ####################################################################
@@ -366,15 +277,15 @@ def main():
                         # Display tool calls if available
                         if hasattr(_resp_chunk, "tool") and _resp_chunk.tool:
                             display_tool_calls(tool_calls_container, [_resp_chunk.tool])
-
                         # Display response
                         if _resp_chunk.content is not None:
                             response += _resp_chunk.content
                             resp_container.markdown(response)
-
                     add_message(
                         "assistant", response, agentic_rag_agent.run_response.tools
                     )
+                    answer_text = get_answer(agentic_rag_agent.run_response)
+                    save_message_to_db(st.session_state["current_session_name"], payload["user_id"], "assistant", answer_text)
                 except Exception as e:
                     error_message = f"Sorry, I encountered an error: {str(e)}"
                     add_message("assistant", error_message)
@@ -383,19 +294,15 @@ def main():
     ####################################################################
     # Session selector
     ####################################################################
-    session_selector_widget(agentic_rag_agent, model_id)
     rename_session_widget(agentic_rag_agent)
-
-    ####################################################################
-    # About section
-    ####################################################################
-    # about_widget()
 
     ####################################################################
     # History session selector
     ####################################################################
     
     st.sidebar.markdown("#### 💬 历史会话")
+    # 每次展示前都重新加载数据库，保证最新
+    st.session_state["chat_sessions"] = get_all_sessions(DB_PATH)
     session_names = [i for i in list(st.session_state["chat_sessions"].keys())]
     with st.sidebar.container():
         for idx, name in enumerate(session_names):

@@ -39,7 +39,7 @@ class CaseStorage:
         return cursor.fetchall()
 
     def get_answer(self, resp):
-        """提取 Agent 回复中最可能是“人话”的那条"""
+        """提取 Agent 回复中最可能是"人话"的那条"""
         if hasattr(resp, "messages"):
             for msg in reversed(resp.messages):
                 if msg.role == "assistant" and isinstance(msg.content, str):
@@ -117,3 +117,11 @@ class CaseStorage:
     #     HTML(string=html_content).write_pdf(pdf_path)
 
     #     return pdf_path
+
+    def update_session_id(self, old_session_id, new_session_id):
+        """批量更新 session_id"""
+        self.conn.execute(
+            "UPDATE case_records SET session_id=? WHERE session_id=?",
+            (new_session_id, old_session_id)
+        )
+        self.conn.commit()

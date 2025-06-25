@@ -5,7 +5,10 @@ import streamlit as st
 from agno.agent import Agent
 from agno.models.response import ToolExecution
 from agno.utils.log import logger
+import sqlite3
+from utils.case_db import CaseStorage
 
+DB_PATH = "history/case.db"
 
 def add_message(
     role: str, content: str, tool_calls: Optional[List[Dict[str, Any]]] = None
@@ -122,9 +125,12 @@ def rename_session_widget(agent: Agent) -> None:
         )
         if st.sidebar.button("Save", type="primary"):
             if new_session_name:
+                # --- 新增：同步数据库 session_id ---
+                old_session_name = st.session_state.get("current_session_name")
+                case_db = CaseStorage()
+                case_db.update_session_id(old_session_name, new_session_name)
                 agent.rename_session(new_session_name)
                 # 同步Streamlit会话名
-                old_session_name = st.session_state.get("current_session_name")
                 st.session_state["current_session_name"] = new_session_name
                 # 同步历史会话key
                 if (
@@ -138,142 +144,25 @@ def rename_session_widget(agent: Agent) -> None:
         st.sidebar.warning("当前会话未初始化，无法重命名。")
 
 
-def session_selector_widget(agent: Agent, model_id: str) -> None:
-    """Display a session selector in the sidebar"""
+def get_all_sessions(DB_PATH):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT session_id, user_id, role, message, created_at FROM case_records ORDER BY created_at")
+    rows = cursor.fetchall()
+    conn.close()
+    # 按 session_id 分组
+    sessions = {}
+    for session_id, user_id, role, message, created_at in rows:
+        if session_id not in sessions:
+            sessions[session_id] = []
+        sessions[session_id].append({
+            "role": role,
+            "content": message,
+            "user_id": user_id,
+            "created_at": created_at
+        })
+    return sessions
 
-    if agent.storage:
-        agent_sessions = agent.storage.get_all_sessions()
-        # print(f"Agent sessions: {agent_sessions}")
-
-        session_options = []
-        for session in agent_sessions:
-            session_id = session.session_id
-            session_name = (
-                session.session_data.get("session_name", None)
-                if session.session_data
-                else None
-            )
-            display_name = session_name if session_name else session_id
-            session_options.append({"id": session_id, "display": display_name})
-
-        if session_options:
-            selected_session = st.sidebar.selectbox(
-                "Session",
-                options=[s["display"] for s in session_options],
-                key="session_selector",
-            )
-            # Find the selected session ID
-            selected_session_id = next(
-                s["id"] for s in session_options if s["display"] == selected_session
-            )
-
-            if (
-                st.session_state.get("agentic_rag_agent_session_id")
-                != selected_session_id
-            ):
-                logger.info(
-                    f"---*--- Loading {model_id} run: {selected_session_id} ---*---"
-                )
-
-                try:
-                    # new_agent = get_agentic_rag_agent(
-                    #     model_id=model_id,
-                    #     session_id=selected_session_id,
-                    # )
-
-                    st.session_state["agentic_rag_agent"] = new_agent
-                    st.session_state["agentic_rag_agent_session_id"] = (
-                        selected_session_id
-                    )
-
-                    st.session_state["messages"] = []
-
-                    selected_session_obj = next(
-                        (
-                            s
-                            for s in agent_sessions
-                            if s.session_id == selected_session_id
-                        ),
-                        None,
-                    )
-
-                    if (
-                        selected_session_obj
-                        and selected_session_obj.memory
-                        and "runs" in selected_session_obj.memory
-                    ):
-                        seen_messages = set()
-
-                        for run in selected_session_obj.memory["runs"]:
-                            if "messages" in run:
-                                for msg in run["messages"]:
-                                    msg_role = msg.get("role")
-                                    msg_content = msg.get("content")
-
-                                    if not msg_content or msg_role == "system":
-                                        continue
-
-                                    msg_id = f"{msg_role}:{msg_content}"
-
-                                    if msg_id in seen_messages:
-                                        continue
-
-                                    seen_messages.add(msg_id)
-
-                                    if msg_role == "assistant":
-                                        tool_calls = None
-                                        if "tool_calls" in msg:
-                                            tool_calls = msg["tool_calls"]
-                                        elif "metrics" in msg and msg.get("metrics"):
-                                            tools = run.get("tools")
-                                            if tools:
-                                                tool_calls = tools
-
-                                        add_message(msg_role, msg_content, tool_calls)
-                                    else:
-                                        add_message(msg_role, msg_content)
-
-                            elif (
-                                "message" in run
-                                and isinstance(run["message"], dict)
-                                and "content" in run["message"]
-                            ):
-                                user_msg = run["message"]["content"]
-                                msg_id = f"user:{user_msg}"
-
-                                if msg_id not in seen_messages:
-                                    seen_messages.add(msg_id)
-                                    add_message("user", user_msg)
-
-                                if "content" in run and run["content"]:
-                                    asst_msg = run["content"]
-                                    msg_id = f"assistant:{asst_msg}"
-
-                                    if msg_id not in seen_messages:
-                                        seen_messages.add(msg_id)
-                                        add_message(
-                                            "assistant", asst_msg, run.get("tools")
-                                        )
-
-                    st.rerun()
-                except Exception as e:
-                    logger.error(f"Error switching sessions: {str(e)}")
-                    st.sidebar.error(f"Error loading session: {str(e)}")
-        else:
-            st.sidebar.info("No saved sessions available.")
-
-
-def about_widget() -> None:
-    """Display an about section in the sidebar"""
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### ℹ️ About")
-    st.sidebar.markdown("""
-    This Agentic RAG Assistant helps you analyze documents and web content using natural language queries.
-
-    Built with:
-    - 🚀 Agno
-    - 💫 Streamlit
-    """)
 
 
 CUSTOM_CSS = """
@@ -340,3 +229,70 @@ CUSTOM_CSS = """
     }
     </style>
 """
+
+def insert_messages(DB_PATH, session_id, user_id, messages):
+    """批量插入一组消息到数据库"""
+    if not messages or len(messages) == 0:
+        return  # 空会话不写入数据库
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    for msg in messages:
+        cursor.execute(
+            "INSERT INTO case_records (session_id, user_id, role, message) VALUES (?, ?, ?, ?)",
+            (session_id, user_id, msg["role"], msg["content"])
+        )
+    conn.commit()
+    conn.close()
+
+def restart_agent():
+    """Reset the agent and clear chat history"""
+    logger.debug("---*--- Restarting Agent ---*---")
+    # 只有当前会话是最新会话时才保存
+    if (
+        st.session_state.get("messages")
+        and len(st.session_state["messages"]) > 0
+        and st.session_state.get("current_session_name") not in st.session_state["chat_sessions"]
+    ):
+        st.session_state["chat_sessions"][st.session_state.get("current_session_name")] = st.session_state["messages"].copy()
+        # === 新增：写入数据库 ===
+        user_id = st.session_state.get("user_id", "default_user")
+        # 生成 session_id，格式为 session_00数字
+        all_sessions = get_all_sessions(DB_PATH)
+        session_count = len(all_sessions)
+        session_id = f"session_{session_count+1:03d}"
+        insert_messages(DB_PATH, session_id, user_id, st.session_state["messages"])
+    # 清空
+    st.session_state["agentic_rag_agent"] = None
+    st.session_state["agentic_rag_agent_session_id"] = None
+    st.session_state["messages"] = []
+    # 新会话名也用 session_00数字
+    all_sessions = get_all_sessions(DB_PATH)
+    session_count = len(all_sessions)
+    st.session_state["current_session_name"] = f"session_{session_count+1:03d}"
+    # 关键：从数据库重新加载 chat_sessions
+    st.session_state["chat_sessions"] = all_sessions
+    st.rerun()
+
+def get_answer(resp):
+    """提取 Agent 回复中最可能是"人话"的那条"""
+    if hasattr(resp, "messages"):
+        for msg in reversed(resp.messages):
+            if msg.role == "assistant" and isinstance(msg.content, str):
+                # 简单规则：过滤明显不是自然语言的 JSON / ToolCall 输出
+                if msg.content.strip().startswith("{") and msg.content.strip().endswith("}"):
+                    continue
+                if msg.content.strip().startswith("<") and msg.content.strip().endswith(">"):
+                    continue
+                if len(msg.content.strip()) < 5:
+                    continue
+                return msg.content.strip()
+    # 兜底
+    if hasattr(resp, "content") and isinstance(resp.content, str):
+        return resp.content.strip()
+    return "[无有效回答]"
+
+
+def save_message_to_db(session_id, user_id, role, content):
+    """保存单条消息到 case.db"""
+    case_db = CaseStorage()
+    case_db.save_message(session_id, user_id, role, content)
