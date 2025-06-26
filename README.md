@@ -1,4 +1,4 @@
-# MSE-AI-T2
+# 基于RAG技术的医疗AI问答助手
 python环境：python 3.12  
 Ollama部署的模型如下：  
 Embedding model:bge-m3  

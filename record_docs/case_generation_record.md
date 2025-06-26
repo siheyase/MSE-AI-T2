@@ -119,15 +119,15 @@
 * 完成一轮对话  
 * 点击 “生成病例报告” 按钮，等待前端显示 “病例报告已生成!”  
 
-![](../image/generate_case_success.png)
+![](./image/generate_case_success.png)
 
 * 点击 “下载病例报告” 按钮    
 
-![](../image/download_case_OK.png)  
+![](./image/download_case_OK.png)  
 
 PDF 字首应从 `## 病例报告` 开始。**缺失姓名/性别/年龄** 时字段显示 “未知或空”。除病例报告关键字段外包含 生成时间 和 AI免责声明。
 
-![](../image/case.png)
+![](./image/case.png)
 
 ---
 
