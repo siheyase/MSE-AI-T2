@@ -161,7 +161,7 @@ def get_agent(model_id: str = DEFAULT_MODEL, session_id=None, user_id=None) -> A
                                  * 是否有**过敏史**或**新环境暴露**（装修、旅游等）？
                                  * 是否近期接触感冒患者、天气变化、工作环境变化等？
                                - 有无基础疾病史（如哮喘、胃病、糖尿病等）
-                            3. 在对话过程中，请使用工具指令 `get_relevant_history_queries("当前用户问题")` 获取与当前查询相关的历史查询记录。
+                            3. 请使用get_relevant_history_queries工具指令 `get_relevant_history_queries(query)` 获取与当前提问相关的历史查询记录，如有完全相同的提问可以直接返回历史回答，并在此基础上询问用户是否哪里理解不清楚。
                             4. 在合适时机使用工具指令 `retrieve_medical("疾病名")` 查询相关疾病的结构化信息。
                             5. 在信息收集充分后，整理并输出一份面向医生的简要病例描述，并建议用户就诊方向（如科室或检查类型）。
 
