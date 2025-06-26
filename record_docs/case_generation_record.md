@@ -97,12 +97,12 @@
 ## 4. 主要问题与解决
 
 | 问题                                                                           | 解决方案                                                      |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **SQLite 跨线程异常**<br>`SQLite objects created in a thread can only be used...` | 连接加 `check_same_thread=False`                             |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **SQLite 跨线程异常**<br>`SQLite objects created in a thread can only be used...`      | 连接加 `check_same_thread=False`                             |
 | `TypeError generate_case 参数不匹配`                                              | 将 `generate_case` 定义为类方法；调用时 `case_db.generate_case(...)` |
 | `ValueError not enough values to unpack`                                     | 认识到 `generate_case` 返回字符串，删除 `(role, msg)` 解包逻辑           |
 | PDF 前多出解释行                                                                   | 在生成 PDF 前对 Markdown 截断，保留 `## 病例报告` 之后内容                  |
-| 在请求PDF数据时等待时间过长，需要给予用户适当的提示                               | 设置`spinner`，并创建`pdf_ready`的状态变量，及时返回病例生成的状态供用户参考      |
+| 在请求PDF数据时等待时间过长，需要给予用户适当的提示                                 | 设置`spinner`，并创建`pdf_ready`的状态变量，及时返回病例生成的状态供用户参考      |
 ---
 
 ## 5. 测试
