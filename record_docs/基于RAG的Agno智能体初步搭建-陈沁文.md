@@ -5,6 +5,7 @@
 
 ## 环境配置
 python环境：python3.12
+
 主要用到的框架和库：agno、ollama、langchain、faiss
 
 创建并激活虚拟环境后启动ollama服务,检查ollama监听端口11434。
