@@ -55,8 +55,9 @@ payload = {
     "session_id": "session_001"
 }
 
-def download_case():
+def download_case(user_id: str, session_id: str):
     base_url = "http://localhost:8000"
+    payload = {"user_id": user_id, "session_id": session_id}
 
     try:
         # 向后端请求 PDF 数据
@@ -219,7 +220,9 @@ def main():
     if st.sidebar.button("📃 生成病例报告", use_container_width=True):
         with st.spinner("正在生成病例报告..."):
             try:
-                pdf_bytes = download_case()
+                USER_ID = "user_001"
+                session_id = st.session_state["current_session_name"]
+                pdf_bytes = download_case(USER_ID, session_id)
                 st.session_state["pdf_bytes"] = pdf_bytes
                 st.session_state["pdf_ready"] = True
                 st.sidebar.success("病例报告已生成！")
