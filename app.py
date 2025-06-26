@@ -50,12 +50,9 @@ def get_reader(file_type: str):
     return readers.get(file_type.lower(), None)
 
 # 生成病例并下載
-#user_id = st.session_state.get("user_id", "default_user")
-#session_id = st.session_state.get("agentic_rag_agent_session_id")
-
 payload = {
     "user_id": "user_001",
-    "session_id": "session_001"  # 替换成有效 ID
+    "session_id": "session_001"
 }
 
 def download_case():
@@ -230,7 +227,6 @@ def main():
                 st.session_state["pdf_ready"] = False
                 st.sidebar.error(f"生成失败：{e}")
 
-    # 按钮2：下载病例报告（仅在生成成功后显示）
     if st.session_state["pdf_ready"] and st.session_state["pdf_bytes"]:
         st.sidebar.download_button(
             label="⬇️ 下载病例报告",
