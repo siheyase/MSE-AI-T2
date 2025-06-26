@@ -9,6 +9,58 @@
 
 ---
 
+## 多轮对话存储功能说明
+
+本项目支持用户 **多轮对话上下文存储**，可实现跨 session 的上下文调用与病例摘要生成。
+
+## 功能简介
+
+* 每次用户与助手对话的内容（包括用户问题与助手回答）将自动记录至 SQLite 数据库。
+* 支持跨 session 合并历史记录生成完整病例摘要。
+* 支持通过 `user_id` 和 `session_id` 唯一标识一段会话。
+
+## 数据库路径
+
+对话数据存储在以下路径：
+
+```
+history/session.db
+```
+
+使用的表名为：
+
+```
+agent_sessions
+```
+
+### 如何使用（代码中示例）
+
+```python
+from models.agent import get_agent
+from utils.case_db import generate_case_all_sessions
+
+# 初始化 Agent，并指定 user_id 和 session_id
+agent = get_agent(session_id="session001", user_id="user001")
+
+# 运行一次对话
+response = agent.run("什么是病毒性心肌炎？")
+print(response)
+
+# 在任意时刻生成该用户的所有病例摘要（跨 session）
+summary = generate_case_all_sessions("user001")
+print("生成的病例摘要：")
+print(summary)
+```
+
+可以参考测试脚本 `test_session.py`，其中演示了如何进行多轮对话存储与病例生成。
+如需测试，请运行：
+
+```bash
+python test_session.py
+```
+
+---
+
 ## 关键代码模块及文件位置
 
 ### 1. `utils/case_db.py`
