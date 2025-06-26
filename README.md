@@ -60,6 +60,11 @@ python main.py
     uvicorn generate_case:app --reload --host 0.0.0.0 --port 8000
     ```
 
+若为本机部署，访问 http://localhost:8501 进入用户页面  
+
+![](record_docs/image/home.png)
+
+    
 ---
 
 ## 多轮对话存储功能说明
